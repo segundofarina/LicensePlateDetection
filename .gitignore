@@ -1,2 +1,5 @@
 *.iml
 .idea
+/target
+outImages/*
+src/main/Resources
