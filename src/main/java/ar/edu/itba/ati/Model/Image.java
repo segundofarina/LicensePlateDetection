@@ -101,4 +101,8 @@ public class Image {
         }
         return newPixels;
     }
+
+    public int[][] getPixelsTemplate() {
+        return new int[height][width];
+    }
 }

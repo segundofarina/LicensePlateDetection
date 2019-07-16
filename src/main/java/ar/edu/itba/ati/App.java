@@ -20,18 +20,21 @@ public class App {
 
     public static void main(String[] args) throws IOException {
 
-        Image image = new Image(new File(App.class.getClassLoader().getResource("patentesJpgMed/IMG_2735.jpg").getPath()));
+        Image image = new Image(new File(App.class.getClassLoader().getResource("patentesJpgSmall/IMG_2736.jpg").getPath()));
+//        Image image = new Image(new File(App.class.getClassLoader().getResource("bmw.jpg").getPath()));
 
         Image bilateral = new BilateralFilter().apply(image);
 
-        Image bilateralBinarized = new GlobalThreshold().applyGlobalThreshold(bilateral);
+//        Image bilateralBinarized = new GlobalThreshold().applyGlobalThreshold(bilateral);
 
-        Image bilateralSobel = new Sobel().apply(bilateralBinarized);
+        Image bilateralSobel = new Sobel().apply(bilateral);
 
         Histogram histogram = new Histogram(bilateralSobel);
 
         System.out.println(histogram.getHorizontal());
         System.out.println(histogram.getVertical());
+
+        System.out.println(histogram.smooth(histogram.getHorizontal()));
 
         System.out.println(histogram.getUmbralized(histogram.getHorizontal()));
         System.out.println(histogram.getUmbralized(histogram.getVertical()));
@@ -72,25 +75,5 @@ public class App {
     }
 
 
-//    private static BufferedImage convertToBufferdImage( int [][] imageArray) {
-//        int width = imageArray[0].length;
-//        int height = imageArray.length;
-//        BufferedImage bufferedImage = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
-//
-//        WritableRaster writableRaster = bufferedImage.getRaster();
-//
-//        for(int y = 0; y < height; y++) {
-//            for(int x = 0; x < width; x++) {
-//                int color = imageArray[y][x];
-//                int value = color <= 128 ? color : color - 256;
-//                writableRaster.setSample(x, y, 0, value);
-//            }
-//        }
-//
-//
-//
-//        return bufferedImage;
-//
-//    }
 
 }

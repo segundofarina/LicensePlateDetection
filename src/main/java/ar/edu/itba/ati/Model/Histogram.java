@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class Histogram {
-    int  threshold = 10;
+    int  threshold = 50;
     private Image image;
 
     private List<Integer> horizontal;
@@ -25,7 +25,7 @@ public class Histogram {
            for(int y = 1; y < image.getHeight(); y++){
                int diff = Math.abs(image.getPixel(x,y)-image.getPixel(x,y-1));
                if(diff > threshold){
-                   count++;
+                   count += diff;
                }
            }
            list.add(count);
@@ -57,12 +57,13 @@ public class Histogram {
     }
 
     public List<Integer> getUmbralized(List<Integer> list){
-//        int threshold = 150;
-        int threshold = getThreshold(list);
-        return smooth(
-                list.stream()
+//        int threshold = 4000;
+        int threshold = smooth(list).stream().reduce(0, Integer::sum) / list.size();
+//        int threshold = list.stream().collect(Collectors.summingInt())
+        System.out.println("threshold is " + threshold + " max is " + smooth(list).stream().max(Integer::compareTo).toString());
+        return smooth(list).stream()
                 .map(num ->  num > threshold ? num : 0)
-                .collect(Collectors.toList()));
+                .collect(Collectors.toList());
     }
 
     private int getThreshold(List<Integer> list){
@@ -97,24 +98,24 @@ public class Histogram {
 
     public List<Integer> smooth(List<Integer> list){
         List<Integer> newList = new ArrayList<>();
-        for(int i= 0; i< 3; i++){
+        for(int i= 0; i< 7; i++){
             newList.add(0);
         }
-        for (int i = 3 ; i < list.size()-3 ; i++){
+        for (int i = 7 ; i < list.size()-7 ; i++){
             int sum = 0;
-            for(int j = -3 ; j< 4 ; j++){
+            for(int j = -7 ; j< 8 ; j++){
                 sum+=list.get(i+j)* gauss(j);
             }
             newList.add(sum);
         }
-        for(int i = list.size()-3 ; i< list.size(); i++){
+        for(int i = list.size()-7 ; i< list.size(); i++){
             newList.add(0);
         }
         return newList;
     }
 
     public double gauss(int j){
-        double sigma = 2;
+        double sigma = 8;
        return  1/(Math.sqrt(Math.PI*2) * sigma) * Math.exp(-(j*j) / (2* sigma* sigma));
     }
 

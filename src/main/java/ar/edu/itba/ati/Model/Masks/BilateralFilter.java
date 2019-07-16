@@ -12,8 +12,8 @@ public class BilateralFilter implements Mask {
      int size;
 
     public BilateralFilter() {
-        this.spaceSigma = 110;
-        this.colorSigma = 350;
+        this.spaceSigma = 40;
+        this.colorSigma = 30;
         this.size = 7;
     }
 
