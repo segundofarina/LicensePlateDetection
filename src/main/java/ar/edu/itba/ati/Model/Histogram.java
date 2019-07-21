@@ -12,10 +12,19 @@ public class Histogram {
     private List<Integer> horizontal;
     private List<Integer> vertical;
 
+    private double [] licenseRatios = { (120.0 /50) , (110.0/35) };
+
     public Histogram (Image image){
         this.image = image;
         this.horizontal = calcHorizontal(image);
         this.vertical = calcVertical(image);
+    }
+
+    public Histogram (Image image, List<Integer> horizontal, List<Integer> vertical) {
+        this.image = image;
+        this.horizontal = horizontal;
+        this.vertical = vertical;
+
     }
 
     public List<Integer> calcHorizontal(Image image){
@@ -39,7 +48,7 @@ public class Histogram {
             for(int x=1; x< image.getWidth(); x++){
                 int diff = Math.abs(image.getPixel(x,y) - image.getPixel(x-1,y));
                 if(diff > threshold){
-                    count++;
+                    count+=diff;
                 }
             }
             list.add(count);
@@ -56,12 +65,15 @@ public class Histogram {
         return vertical;
     }
 
-    public List<Integer> getUmbralized(List<Integer> list){
-//        int threshold = 4000;
-        int threshold = smooth(list).stream().reduce(0, Integer::sum) / list.size();
-//        int threshold = list.stream().collect(Collectors.summingInt())
-        System.out.println("threshold is " + threshold + " max is " + smooth(list).stream().max(Integer::compareTo).toString());
-        return smooth(list).stream()
+    public Histogram umbralize(){
+        return new Histogram(image,umbralize(horizontal), umbralize(vertical));
+    }
+
+
+    private List<Integer> umbralize(List<Integer> list){
+        int threshold = (int) (list.stream().reduce(0, Integer::sum) / list.size() * 1);
+        System.out.println("threshold is " + threshold + " max is " + list.stream().max(Integer::compareTo).orElse(0) );
+        return list.stream()
                 .map(num ->  num > threshold ? num : 0)
                 .collect(Collectors.toList());
     }
@@ -95,33 +107,61 @@ public class Histogram {
     return threshold;
     }
 
+    public Histogram smooth(){
+        return new Histogram(image,smooth(horizontal),smooth(vertical));
+    }
 
-    public List<Integer> smooth(List<Integer> list){
+    private List<Integer> smooth(List<Integer> list){
         List<Integer> newList = new ArrayList<>();
-        for(int i= 0; i< 7; i++){
+        int maskSize = 15;
+        for(int i= 0; i< maskSize/2; i++){
             newList.add(0);
         }
-        for (int i = 7 ; i < list.size()-7 ; i++){
+        for (int i = maskSize/2 ; i < list.size()-maskSize/2 ; i++){
             int sum = 0;
-            for(int j = -7 ; j< 8 ; j++){
+            for(int j = -maskSize/2 ; j< maskSize/2 +1 ; j++){
                 sum+=list.get(i+j)* gauss(j);
             }
             newList.add(sum);
         }
-        for(int i = list.size()-7 ; i< list.size(); i++){
+        for(int i = list.size()-maskSize/2 ; i< list.size(); i++){
             newList.add(0);
         }
         return newList;
     }
 
     public double gauss(int j){
-        double sigma = 8;
-       return  1/(Math.sqrt(Math.PI*2) * sigma) * Math.exp(-(j*j) / (2* sigma* sigma));
+        double sigma = 15;
+        return  1/(Math.sqrt(Math.PI*2) * sigma) * Math.exp(-(j*j) / (2* sigma* sigma));
+    }
+
+
+    public List<Integer> getPoints (List<Integer> list){
+//        int minimum = list.get(0);
+        int globalMax = list.stream().max(Integer::compareTo).orElse(0);
+        int lastMax = 0;
+        List<Integer> minimums = new ArrayList<>();
+        boolean goingUp = true;
+        for(int i = 0; i < list.size() - 1; i++){
+           int diff = list.get(i+1) - list.get(i);
+           if(diff > 0 && !goingUp){
+               // Empiezo a subir
+               goingUp = true;
+//               if(lastMax - list.get(i) > globalMax * 0.05) {
+                   minimums.add(i);
+//               }
+           } else if( diff < 0 && goingUp){
+               // empiezo a bajar
+               goingUp = false;
+               lastMax = list.get(i);
+           }
+        }
+        return minimums;
     }
 
     public List<Point> getIntervals(List<Integer> list){
-       int start= -1;
-       List<Point> intervals = new ArrayList<>();
+        int start= -1;
+        List<Point> intervals = new ArrayList<>();
         for(int i = 0; i < list.size(); i++){
             if(list.get(i) == 0){
                 if(start == -1){
@@ -133,6 +173,10 @@ public class Histogram {
                     start=-1;
                 }
             }
+        }
+
+        if(start != -1) {
+            intervals.add(new Point(start, list.size()));
         }
         return intervals;
     }

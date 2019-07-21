@@ -105,4 +105,23 @@ public class Image {
     public int[][] getPixelsTemplate() {
         return new int[height][width];
     }
+
+    public Image subImage(Point limitH, Point limitV) {
+        int[][] newPixels = new int[limitV.y-limitV.x][limitH.y-limitH.x];
+        for( int x = limitH.x, i=0; x < limitH.y; x++,i++){
+           for( int y = limitV.x, j=0; y < limitV.y; y++, j++){
+               newPixels[j][i] = this.getPixel(x,y);
+           }
+        }
+        return new Image(newPixels);
+    }
+
+    public void saveImage(File path){
+        try {
+
+            ImageIO.write(getBufferedImage(), "jpg", path);
+        } catch(IOException e){
+            System.out.println("Could not save image");
+        }
+    }
 }
