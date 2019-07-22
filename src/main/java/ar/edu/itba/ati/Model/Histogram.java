@@ -72,6 +72,7 @@ public class Histogram {
 
     private List<Integer> umbralize(List<Integer> list){
         int threshold = (int) (list.stream().reduce(0, Integer::sum) / list.size() * 1);
+//        int threshold = getThreshold(list);
         System.out.println("threshold is " + threshold + " max is " + list.stream().max(Integer::compareTo).orElse(0) );
         return list.stream()
                 .map(num ->  num > threshold ? num : 0)
@@ -159,26 +160,6 @@ public class Histogram {
         return minimums;
     }
 
-    public List<Point> getIntervals(List<Integer> list){
-        int start= -1;
-        List<Point> intervals = new ArrayList<>();
-        for(int i = 0; i < list.size(); i++){
-            if(list.get(i) == 0){
-                if(start == -1){
-                    start = i;
-                }
-            }else{
-                if(start!= -1){
-                    intervals.add(new Point(start,i));
-                    start=-1;
-                }
-            }
-        }
 
-        if(start != -1) {
-            intervals.add(new Point(start, list.size()));
-        }
-        return intervals;
-    }
 
 }
