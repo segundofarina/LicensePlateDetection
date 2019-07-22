@@ -107,6 +107,9 @@ public class Image {
     }
 
     public Image subImage(Point limitH, Point limitV) {
+        if(limitV.y - limitV.x <= 0) {
+            return null;
+        }
         int[][] newPixels = new int[limitV.y-limitV.x][limitH.y-limitH.x];
         for( int x = limitH.x, i=0; x < limitH.y; x++,i++){
            for( int y = limitV.x, j=0; y < limitV.y; y++, j++){

@@ -10,6 +10,7 @@ import ar.edu.itba.ati.Model.Histogram;
 import ar.edu.itba.ati.Model.Image;
 import ar.edu.itba.ati.Model.Masks.BilateralFilter;
 import ar.edu.itba.ati.Model.Masks.Sobel;
+import ar.edu.itba.ati.Model.Ocr;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,18 +22,33 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class App {
-    private static List<Double> licenseRatios = Arrays.asList((400.0 / 130.0));
+//    private static List<Double> licenseRatios = Arrays.asList((400.0 / 130.0));
+    private static int[] PLATE_TEMPLATE = new int[]{3, 3};
+    private static List<Double> licenseRatios = Arrays.asList(2.4);
 
     public static void main(String[] args) throws IOException {
-        Image image = new Image(new File(App.class.getClassLoader().getResource("patentesJpgMed/IMG_2726.jpg").getPath()));
+        Image image = new Image(new File(App.class.getClassLoader().getResource("patentesJpgMed/IMG_2735.jpg").getPath()));
+
+        image.saveImage(new File("outImages/original.jpg"));
 
         Image bilateral = new BilateralFilter().apply(image);
 
         Image bilateralSobel = new Sobel().apply(bilateral);
+        Image sobel = new Sobel().apply(image);
+        sobel.saveImage(new File("outImages/onlySobel.jpg"));
 
         Histogram histogram = new Histogram(bilateralSobel);
         Histogram smoothed = histogram.smooth();
         Histogram umbralized = smoothed.umbralize();
+        System.out.println("ORIGINAL HISTOGRAM");
+        System.out.println(histogram.getHorizontal());
+        System.out.println(histogram.getVertical());
+        System.out.println("SMOOTH HISTOGRAM");
+        System.out.println(smoothed.getHorizontal());
+        System.out.println(smoothed.getVertical());
+        System.out.println("UMBRALIZED HISTOGRAM");
+        System.out.println(umbralized.getHorizontal());
+        System.out.println(umbralized.getVertical());
 
         List<Point> hoirziontalPoints = getIntervals(umbralized.getHorizontal());
         List<Point> verticalPoints = getIntervals(umbralized.getVertical());
@@ -55,28 +71,81 @@ public class App {
         ImageIO.write(bilateral.getBufferedImage(), "jpg", new File("./outImages/bilateral.jpg"));
         ImageIO.write(bilateralSobel.getBufferedImage(), "jpg", new File("./outImages/bilateralSobel.jpg"));
         ImageIO.write(blackImage.getBufferedImage(), "jpg", new File("./outImages/blackimage.jpg"));
-
+        List<List<Image>> letters = new ArrayList<>();
         for (int i = 0; i < licences.size(); i++){
-            findLicnese(licences.get(i), licencesSobel.get(i),"license"+i);
+            letters.add(
+                findLicnese(licences.get(i), licencesSobel.get(i),"license"+i)
+            );
+        }
+
+        // OCR
+        Ocr ocr = new Ocr();
+
+        String selectedPlate = "";
+        for(List<Image> list : letters) {
+            for(Image character : list) {
+                String plate = ocr.getText(character).trim();
+
+                String[] sections = plate.split(" ");
+                if(sections.length != PLATE_TEMPLATE.length) {
+                    continue;
+                }
+
+                int sectionsMatch = 0;
+                for(int i = 0; i < sections.length; i++) {
+                    if(sections[i].length() == PLATE_TEMPLATE[i]) {
+                        sectionsMatch++;
+                    }
+                }
+
+
+                if(sectionsMatch == PLATE_TEMPLATE.length) {
+                    selectedPlate = plate;
+                    break;
+                }
+            }
+            if(!selectedPlate.isEmpty()) {
+                break;
+            }
+        }
+
+
+        if(!selectedPlate.isEmpty()) {
+            System.out.print("The selected plate is " + selectedPlate);
+        } else {
+            System.out.print("Unable to detect licence plate");
         }
 
 
     }
 
-    private static void findLicnese(Image license, Image licenseSobel, String name){
+    private static List<Image> findLicnese(Image license, Image licenseSobel, String name){
         licenseSobel.saveImage(new File("./outImages/PosibleLicenses/"+name+".jpg"));
-
+//        System.out.println("ORIGINAL HISTOGRAM");
+//        System.out.println(new Histogram(licenseSobel).getHorizontal());
+//        System.out.println(new Histogram(licenseSobel).getVertical());
+//
         Histogram licenseHistogram = new Histogram(licenseSobel).smooth();
-        System.out.println("LICENSE HISTOGRAM");
-        System.out.println(licenseHistogram.getHorizontal());
-        System.out.println(licenseHistogram.getVertical());
-
+//        System.out.println("SMOOTH HISTOGRAM");
+//        System.out.println(licenseHistogram.getHorizontal());
+//        System.out.println(licenseHistogram.getVertical());
+//
         Histogram licenseHistUmbralized = licenseHistogram.umbralize();
+//        System.out.println("UMBRALIZED HISTOGRAM");
+//        System.out.println(licenseHistUmbralized.getHorizontal());
+//        System.out.println(licenseHistUmbralized.getVertical());
 
-        Image cutLicense = license.subImage(new Point(0, license.getWidth()), getMaximumSpectrum(getIntervals(licenseHistUmbralized.getVertical())));
+        Point heightInterval = getMaximumSpectrum(getIntervals(licenseHistUmbralized.getVertical()));
+        if(heightInterval.x > 20 && heightInterval.y < license.getHeight() - 20) {
+            heightInterval = new Point(heightInterval.x - 20, heightInterval.y + 20);
+        }
+        Image cutLicense = license.subImage(new Point(0, license.getWidth()), heightInterval);
+        if(cutLicense == null) {
+            return new ArrayList<>();
+        }
         cutLicense.saveImage(new File("./outImages/PosibleLicenses/"+name+"cut.jpg"));
         Histogram cutHistogram = new Histogram(cutLicense).smooth().umbralize();
-
+        List<Image> letters = getLetters(cutLicense,getIntervals(cutHistogram.getHorizontal()));
         int[][] licenseNewPixels = cutLicense.clonePixels();
         blackbars(licenseNewPixels, smoothIntervals(cutLicense.getHeight(),getIntervals(cutHistogram.getHorizontal())));
        // blackbarsVertical(licenseNewPixels, getIntervals(cutHistogram.getVertical()));
@@ -85,11 +154,16 @@ public class App {
 
         licenseBlackImage.saveImage(new File("./outImages/PosibleLicenses/"+name+"cutBlackImage.jpg"));
 
+
+        letters = new ArrayList<>();
+        letters.add(cutLicense);
+
+        return letters;
     }
     private static List<Point> smoothIntervals(int heigth, List<Point> interval){
         List<Point> newInterval = new ArrayList<>();
         for(Point p : interval){
-            if((double)p.y-p.x > 10){
+            if((double)p.y-p.x > 0){
                 newInterval.add(p);
             }
         }
@@ -139,6 +213,14 @@ public class App {
         }
     }
 
+    private static List<Image> getLetters(Image image, List<Point> horizontal){
+        List<Image> letters = new ArrayList<>();
+        for (int i = 1 ; i < horizontal.size(); i++){
+            letters.add(image.subImage(new Point(horizontal.get(i-1).y, horizontal.get(i).x), new Point(0,image.getHeight())));
+        }
+        return letters;
+
+    }
     private static Tuple getPosibleLicenes(Image image,Image sobelImage, List<Point> horizontal, List<Point> vertical, List<Double> ratios) {
         List<Image> images = new ArrayList<>();
         List<Image> sobelImages = new ArrayList<>();
